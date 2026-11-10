@@ -1,0 +1,24 @@
+{
+  "name": "cloud-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloud Hub — gerenciador multi-cloud para estudo.",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "pnpm": "12.18.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @cloud-hub/web --filter @cloud-hub/api dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "typescript": "6.0.3"
+  }
+}

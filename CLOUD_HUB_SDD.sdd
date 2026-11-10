@@ -1,0 +1,663 @@
+# CLOUD HUB — SOFTWARE DESIGN DOCUMENT (SDD)
+
+**Projeto:** Cloud Hub — Gerenciador Multi-Cloud  
+**Documento:** Software Design Document (SDD)  
+**Versão:** 0.1 — Documento inicial para execução assistida pelo Codex  
+**Data:** 09/11/2026  
+**Status:** Base aprovada conceitualmente; decisões técnicas específicas devem ser validadas antes da implementação.
+
+---
+
+## 1. Objetivo deste documento
+
+Este documento define a visão, os requisitos, a arquitetura inicial, as tecnologias previstas, os limites e a estratégia de implementação do Cloud Hub. Ele será a principal referência para o Codex durante o desenvolvimento.
+
+O Codex deve usar este documento como fonte de requisitos, mas não deve interpretar itens futuros ou experimentais como autorização para implementá-los no MVP.
+
+### 1.1 Como o Codex deve trabalhar com este SDD
+
+1. Antes de iniciar uma fase, apresentar um plano curto com objetivo, arquivos que pretende criar/alterar, dependências e critérios de aceite.
+2. Executar uma fase por vez. Não avançar automaticamente para a fase seguinte.
+3. Quando houver decisão técnica ainda não validada, explicar as opções e recomendar uma delas antes de alterar a arquitetura.
+4. Não implementar funcionalidades fora do escopo da fase atual sem autorização explícita.
+5. Não apagar arquivos, dados, tabelas, volumes, buckets ou configurações existentes sem autorização explícita.
+6. Não executar migrações destrutivas, comandos de limpeza ou operações irreversíveis sem explicar o impacto e obter autorização.
+7. Usar TypeScript com tipagem rigorosa. Evitar `any`; quando inevitável, justificar e limitar seu uso.
+8. Criar testes para regras de negócio e integrações, além de executar lint, typecheck e testes aplicáveis antes de concluir uma fase.
+9. Atualizar a documentação quando uma decisão ou comportamento mudar.
+10. Nunca inserir tokens, senhas, chaves privadas, client secrets ou outros segredos no código, nos commits ou nos logs.
+11. Não inventar suporte de API. Cada provedor deve declarar explicitamente quais operações suporta.
+12. Ao concluir uma fase, apresentar resumo, arquivos alterados, comandos executados, testes e pendências.
+
+---
+
+## 2. Visão do produto
+
+O Cloud Hub será uma aplicação web que centraliza o acesso e o gerenciamento de arquivos armazenados em diferentes provedores de nuvem.
+
+O sistema permitirá conectar uma ou mais contas de cada provedor, consultar arquivos e pastas em uma interface unificada e, em fases posteriores, realizar operações entre provedores, como transferências.
+
+**O Cloud Hub não será um novo serviço de armazenamento de arquivos.** Os arquivos continuarão armazenados nos provedores originais. O sistema manterá no banco de dados apenas os dados necessários para autenticação, conexões, configurações, histórico e cache de metadados.
+
+### 2.1 Provedores previstos
+
+- Google Drive — integração prioritária do MVP.
+- Dropbox — integração prioritária do MVP.
+- Microsoft OneDrive — integração prioritária do MVP.
+- MEGA — integração experimental posterior, por meio de prova de conceito. Não é requisito para o MVP.
+
+### 2.2 Objetivo principal do MVP
+
+Permitir que um usuário:
+
+1. Crie uma conta e entre no Cloud Hub.
+2. Conecte contas do Google Drive, Dropbox e OneDrive.
+3. Conecte várias contas do mesmo provedor.
+4. Consulte arquivos e pastas em uma interface centralizada.
+5. Navegue pelas pastas e filtre resultados por provedor e por conta.
+6. Desconecte uma conta conectada.
+
+**Critério central de sucesso:** o usuário consegue conectar mais de uma conta, listar arquivos de diferentes provedores e navegar por eles em uma interface única.
+
+---
+
+## 3. Escopo e limites
+
+### 3.1 Incluído no MVP
+
+- Cadastro e login internos.
+- Gerenciamento de sessão.
+- Conexão OAuth com Google Drive, Dropbox e OneDrive.
+- Suporte a múltiplas contas por provedor.
+- Armazenamento seguro das credenciais/tokens necessários.
+- Listagem paginada de arquivos e pastas.
+- Navegação por pastas.
+- Filtros por provedor e conta.
+- Ordenação e pesquisa, respeitando os recursos de cada API.
+- Metadados disponíveis, como nome, tipo, tamanho, datas e identificador remoto.
+- Dashboard básico com conexões e status.
+- Desconexão/revogação da conexão, quando suportada pelo provedor.
+- Tratamento de erros, expiração de token, limites e paginação.
+
+### 3.2 Fora do MVP — planejado para fases posteriores
+
+- Transferência de arquivos entre provedores.
+- Upload, exclusão, renomeação e movimentação, além do que for necessário para a navegação inicial.
+- Compartilhamento e gerenciamento de permissões.
+- Sincronização automática contínua.
+- Aplicativo desktop ou mobile.
+- Integração MEGA considerada estável.
+- Uso obrigatório de armazenamento temporário S3.
+- Processamento assíncrono avançado e notificações.
+
+Esses itens não devem ser implementados no MVP sem aprovação de uma mudança de escopo.
+
+### 3.3 Princípios do produto
+
+- O provedor original é a fonte oficial dos arquivos e de seus metadados.
+- O cache local não substitui os dados do provedor.
+- Não presumir que todos os provedores oferecem as mesmas operações ou metadados.
+- Mostrar ao usuário de qual provedor e conta cada arquivo veio.
+- Isolar os dados e as conexões de cada usuário.
+- Priorizar segurança, clareza de erros e previsibilidade.
+
+---
+
+## 4. Requisitos funcionais
+
+| ID | Requisito | Prioridade |
+|---|---|---|
+| RF-001 | Permitir cadastro de usuário no Cloud Hub | MVP |
+| RF-002 | Permitir login e encerramento de sessão | MVP |
+| RF-003 | Permitir conectar Google Drive via OAuth 2.0 | MVP |
+| RF-004 | Permitir conectar Dropbox via OAuth 2.0 | MVP |
+| RF-005 | Permitir conectar OneDrive via Microsoft Graph | MVP |
+| RF-006 | Permitir múltiplas conexões do mesmo provedor | MVP |
+| RF-007 | Listar arquivos e pastas de uma conexão | MVP |
+| RF-008 | Navegar entre pastas | MVP |
+| RF-009 | Filtrar arquivos por provedor e conta | MVP |
+| RF-010 | Exibir metadados fornecidos pelas APIs | MVP |
+| RF-011 | Permitir desconectar uma conta | MVP |
+| RF-012 | Exibir status das conexões no dashboard | MVP |
+| RF-013 | Implementar pesquisa e ordenação compatíveis com cada API | MVP, conforme API |
+| RF-014 | Registrar eventos relevantes de auditoria | Base inicial; detalhar antes da fase de auditoria |
+| RF-015 | Transferir arquivos entre provedores | Futuro |
+| RF-016 | Integrar MEGA | Experimental/futuro |
+
+---
+
+## 5. Requisitos não funcionais
+
+- **RNF-001 — Segurança:** segredos e tokens não podem ser expostos ao frontend, ao repositório ou aos logs.
+- **RNF-002 — Isolamento:** toda consulta ou operação sobre conexões deve validar a propriedade da conexão pelo usuário autenticado.
+- **RNF-003 — Tipagem:** TypeScript rigoroso e validação de dados externos em tempo de execução.
+- **RNF-004 — Resiliência:** tratar indisponibilidade, erros HTTP, limites de requisição, paginação e expiração de tokens.
+- **RNF-005 — Manutenibilidade:** integrações isoladas por adaptadores, sem espalhar regras específicas de provedores pela aplicação.
+- **RNF-006 — Observabilidade:** logs estruturados sem dados secretos e mensagens de erro úteis.
+- **RNF-007 — Testabilidade:** regras de negócio testáveis sem depender sempre das APIs reais.
+- **RNF-008 — Configuração:** ambientes local, teste e produção devem usar configurações separadas.
+- **RNF-009 — Privacidade:** armazenar somente os dados necessários para o funcionamento do produto.
+- **RNF-010 — Compatibilidade:** respeitar limites, termos, escopos e políticas de cada provedor.
+
+---
+
+## 6. Stack tecnológica prevista
+
+A stack abaixo representa a direção aprovada. Antes de fixar versões e gerar arquivos de instalação, o Codex deve verificar compatibilidade e documentação oficial atualizada. As versões devem ser fixadas no projeto, evitando dependências flutuantes.
+
+### 6.1 Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Shadcn/UI
+
+Responsabilidades:
+- Interface web e navegação.
+- Login e experiência de conexão de provedores.
+- Exibição da lista unificada e dos metadados.
+- Filtros, pesquisa, ordenação e estados de carregamento/erro.
+- Nunca armazenar client secrets ou refresh tokens de provedores.
+
+### 6.2 Backend
+
+- Node.js
+- NestJS
+- TypeScript
+- Prisma ORM
+- Zod para validação de dados e contratos compartilhados, quando adequado.
+- Swagger/OpenAPI para documentação da API.
+
+Responsabilidades:
+- Autenticação e autorização.
+- Gerenciamento das conexões OAuth.
+- Proteção e renovação de tokens.
+- Orquestração dos adaptadores de provedores.
+- Normalização de metadados.
+- Aplicação das regras de negócio e isolamento por usuário.
+
+### 6.3 Banco e serviços auxiliares
+
+- PostgreSQL — persistência principal.
+- Redis — cache, controle temporário e filas quando necessário.
+
+Redis não deve ser introduzido em um fluxo sem necessidade concreta. A infraestrutura pode incluí-lo desde o início para aprendizado, mas a aplicação deve manter responsabilidades claras e não depender dele para dados permanentes.
+
+### 6.4 Autenticação
+
+- Better Auth para autenticação interna do Cloud Hub.
+- OAuth 2.0 para conexão com os provedores externos.
+
+A integração entre Better Auth e NestJS precisa ser validada antes da implementação. O Codex deve consultar a documentação oficial e propor uma arquitetura compatível, sem presumir integração nativa ou suporte oficial inexistente. A autenticação interna e o OAuth dos provedores são fluxos distintos.
+
+### 6.5 Infraestrutura e desenvolvimento
+
+- Docker e Docker Compose.
+- MiniStack como emulador local de serviços AWS para estudo e fases futuras.
+- AWS SDK for JavaScript v3 para interações com serviços AWS compatíveis.
+- Git e GitHub.
+- GitHub Actions para CI.
+
+**Importante:** MiniStack não é MinIO e não deve ser tratado como um provedor de armazenamento de arquivos de usuário. Seu papel é emular serviços AWS. A utilização de S3/SQS/SNS/Lambda será introduzida quando uma necessidade do sistema justificar esses serviços. O MVP de conexão e listagem não deve depender deles.
+
+---
+
+## 7. Arquitetura lógica
+
+A aplicação será organizada em camadas, com responsabilidades separadas.
+
+### 7.1 Componentes principais
+
+1. **Web App:** interface Next.js.
+2. **API:** aplicação NestJS responsável por autenticação, autorização, regras de negócio e endpoints.
+3. **Provider Adapters:** camada de integração isolada para cada provedor.
+4. **Database:** PostgreSQL com Prisma.
+5. **Cache/Queue:** Redis, quando aplicável.
+6. **Worker:** processo separado para tarefas assíncronas futuras, principalmente transferências.
+7. **MiniStack:** infraestrutura AWS simulada para experimentação e recursos futuros.
+
+### 7.2 Fluxo simplificado de listagem
+
+1. O usuário autentica-se no Cloud Hub.
+2. O frontend solicita à API os arquivos de uma conexão ou a lista unificada.
+3. A API identifica o usuário autenticado e valida que as conexões pertencem a ele.
+4. A API seleciona o adaptador correspondente ao provedor.
+5. O adaptador consulta a API externa usando credenciais protegidas e trata paginação/limites.
+6. A API normaliza a resposta para o contrato interno.
+7. O frontend apresenta os resultados, mantendo a identificação do provedor e da conta.
+
+### 7.3 Adaptadores de provedores
+
+Criar uma abstração comum, mas não forçar paridade de funcionalidades.
+
+Adaptadores previstos:
+- `GoogleDriveAdapter`
+- `DropboxAdapter`
+- `OneDriveAdapter`
+- `MegaAdapter` (experimental)
+
+Operações candidatas ao contrato:
+- `listFiles`
+- `listFolders`
+- `getFile`
+- `downloadFile`
+- `uploadFile`
+- `deleteFile`
+- `renameFile`
+- `moveFile`
+- `createFolder`
+- `getStorageInfo`
+- `refreshToken`
+
+O MVP precisa, no mínimo, de listagem e navegação. As demais operações só devem ser expostas quando implementadas e suportadas pelo provedor.
+
+Cada adaptador deve declarar capacidades, por exemplo, por meio de um mapa de capacidades tipado. A API não deve oferecer uma operação como universal quando o provedor não a suporta.
+
+### 7.4 Normalização de arquivos
+
+Definir um modelo interno de metadados que preserve:
+- ID remoto do arquivo.
+- ID da conexão/conta de origem.
+- Provedor.
+- Nome.
+- Tipo MIME, quando disponível.
+- Indicação de pasta ou arquivo.
+- Tamanho, quando disponível.
+- Datas de criação e modificação, quando disponíveis.
+- ID remoto da pasta pai, quando disponível.
+- Indicadores de capacidades/ações disponíveis.
+- Link web fornecido pelo provedor, quando aplicável e seguro.
+
+Campos indisponíveis devem ser opcionais/nulos; não inventar valores. Preservar dados específicos relevantes do provedor em estrutura controlada, sem vazar tokens ou dados sensíveis.
+
+---
+
+## 8. Integrações externas e OAuth
+
+### 8.1 Google Drive
+
+- API prevista: Google Drive API v3.
+- Usar OAuth 2.0 e solicitar o menor conjunto de escopos compatível com as funções do MVP.
+- Tratar consentimento, callback, troca de código, refresh token, revogação e expiração.
+- Verificar requisitos de publicação/verificação do aplicativo e restrições dos escopos antes de disponibilizar para usuários externos.
+
+### 8.2 Dropbox
+
+- API prevista: Dropbox API v2.
+- Usar OAuth 2.0.
+- Tratar tokens, escopos, paginação, limites e diferenças entre arquivos e pastas.
+
+### 8.3 Microsoft OneDrive
+
+- API prevista: Microsoft Graph.
+- Usar OAuth 2.0 com configuração adequada no Microsoft identity platform.
+- Definir os tipos de conta Microsoft suportados e os escopos necessários antes de implementar o fluxo.
+- Tratar paginação por `@odata.nextLink`, expiração e renovação de tokens.
+
+### 8.4 MEGA
+
+- Integração posterior e experimental.
+- Fazer prova de conceito para avaliar biblioteca, compatibilidade, segurança e limites.
+- Não solicitar nem armazenar a senha da conta MEGA do usuário.
+- Não incluir no MVP nem prometer suporte estável antes da validação.
+
+### 8.5 Regras gerais de OAuth
+
+- `state` deve ser validado para proteção contra CSRF no fluxo OAuth.
+- Validar callbacks e URLs de redirecionamento.
+- Guardar tokens somente no backend.
+- Criptografar tokens em repouso usando chave externa à base de código e gerenciada por configuração segura.
+- Implementar renovação e tratamento de revogação/expiração.
+- Não registrar tokens, códigos OAuth ou segredos nos logs.
+- Usar escopos mínimos e explicar ao usuário as permissões solicitadas.
+- Vincular cada conexão ao usuário interno que iniciou o fluxo.
+- Tratar reconexão e múltiplas contas sem sobrescrever conexões existentes.
+
+---
+
+## 9. Segurança e autorização
+
+- Toda rota protegida deve validar a sessão/autenticação.
+- Toda operação com `CloudConnection` deve validar a propriedade da conexão pelo usuário atual.
+- Não confiar em `userId` enviado pelo frontend como prova de autorização.
+- Tokens e segredos devem ser criptografados em repouso; a chave de criptografia deve vir de secret/configuração segura.
+- Não enviar tokens de provedor ao navegador.
+- Não expor mensagens de erro que contenham headers, tokens ou dados internos.
+- Aplicar rate limiting nos endpoints sensíveis e nos fluxos de autenticação.
+- Usar proteção CSRF conforme o mecanismo de sessão/cookies escolhido.
+- Validar entrada e saída de dados externos.
+- Usar HTTPS em ambientes publicados.
+- Definir política de retenção e exclusão de credenciais quando o usuário desconectar uma conta ou excluir sua conta interna.
+- Criar trilha de auditoria para eventos relevantes sem armazenar segredos.
+
+---
+
+## 10. Modelo de dados inicial
+
+O modelo abaixo é conceitual. O Codex deve propor o schema Prisma detalhado na fase de banco, validar relações e restrições e apresentar o plano antes de gerar migrações.
+
+### 10.1 Entidades previstas
+
+- `User` — usuário interno.
+- `Account` — contas/provedores de autenticação usados pelo Better Auth, conforme seu modelo real.
+- `Session` — sessões internas, conforme Better Auth.
+- `Verification` — verificações de autenticação, conforme Better Auth.
+- `CloudProvider` — catálogo dos provedores suportados.
+- `CloudConnection` — conexão de uma conta externa vinculada a um usuário.
+- `CloudCredential` — tokens/credenciais protegidos associados a uma conexão.
+- `CloudFileCache` — cache opcional de metadados remotos.
+- `Transfer` — transferência futura entre provedores.
+- `TransferLog` — eventos e progresso de transferência.
+- `AuditLog` — eventos relevantes de segurança e operação.
+- `Notification` — notificações futuras.
+
+### 10.2 Regras de modelagem
+
+- Uma pessoa pode ter várias `CloudConnection`.
+- Uma pessoa pode ter várias conexões do mesmo `CloudProvider`.
+- Cada conexão deve pertencer a exatamente um usuário interno.
+- Credenciais devem estar relacionadas à conexão e ser armazenadas criptografadas.
+- Identificadores remotos devem ser tratados como strings opacas; não presumir formato ou unicidade global entre provedores.
+- Cache deve possuir identificador do provedor e da conexão para evitar colisões.
+- Definir índices e constraints para impedir duplicidade indevida sem bloquear múltiplas contas legítimas.
+- Definir comportamento de exclusão/retenção de dados antes de criar `onDelete` em cascata.
+- Não armazenar conteúdo binário dos arquivos no PostgreSQL.
+
+---
+
+## 11. Organização do repositório
+
+A proposta é um monorepo. A estrutura final deve ser validada antes de criar os arquivos iniciais.
+
+```text
+cloud-hub/
+├── apps/
+│   ├── web/                    # Next.js / React
+│   ├── api/                    # NestJS
+│   └── worker/                 # Processos assíncronos futuros
+├── packages/
+│   ├── shared-types/           # Tipos compartilhados
+│   └── shared-schemas/         # Schemas/validações compartilhados
+├── infrastructure/
+│   ├── docker/
+│   ├── ministack/
+│   └── scripts/
+├── docs/
+│   ├── SDD.md
+│   ├── decisions/              # Registros de decisões arquiteturais (ADRs)
+│   └── guides/
+├── .github/
+│   └── workflows/
+├── .env.example
+├── .gitignore
+├── README.md
+└── package.json                # Workspace/monorepo, ferramenta a validar
+```
+
+A ferramenta de workspace (por exemplo, npm workspaces ou pnpm) deve ser escolhida após comparar compatibilidade, simplicidade e documentação. Não misturar gerenciadores de pacotes.
+
+---
+
+## 12. Infraestrutura local
+
+### 12.1 Serviços previstos
+
+- Web app.
+- API.
+- PostgreSQL.
+- Redis.
+- MiniStack, inicialmente opcional para o MVP funcional.
+- Worker, quando as tarefas assíncronas forem introduzidas.
+
+### 12.2 Docker Compose
+
+O Docker Compose deverá:
+- Definir serviços, redes e volumes nomeados.
+- Usar imagens com versões fixadas, evitando `latest` em configurações estáveis.
+- Persistir dados do PostgreSQL em volume.
+- Definir healthchecks quando suportados.
+- Carregar variáveis de ambiente sem versionar segredos.
+- Permitir iniciar apenas os serviços necessários ao desenvolvimento da fase atual.
+
+### 12.3 MiniStack
+
+O MiniStack será utilizado para estudo e simulação de serviços AWS, não como requisito do fluxo básico de login/listagem.
+
+Serviços candidatos para fases futuras:
+- S3: armazenamento temporário durante transferências, quando necessário.
+- SQS: filas de processamento.
+- SNS: notificações/eventos.
+- Lambda: processamento serverless experimental.
+- CloudWatch: estudo de logs/métricas, conforme suporte do emulador.
+
+O Codex deve verificar quais serviços e recursos são efetivamente suportados pela versão escolhida do MiniStack. Não assumir compatibilidade total com AWS. Para S3, usar bucket privado e AWS SDK v3. Preferir streaming direto entre provedores quando viável, evitando armazenar cópias completas sem necessidade.
+
+---
+
+## 13. API interna — orientação inicial
+
+Os caminhos abaixo são exemplos de organização, não contratos finais. O Codex deve propor e documentar os DTOs, códigos HTTP, paginação e regras de autorização antes de implementar.
+
+- `GET /health` — saúde da API.
+- `GET /cloud-providers` — provedores disponíveis.
+- `GET /cloud-connections` — conexões do usuário autenticado.
+- `POST /cloud-connections/:provider/connect` — iniciar fluxo OAuth, se essa forma for escolhida.
+- `GET /cloud-connections/:connectionId/callback` — callback OAuth, conforme desenho final.
+- `DELETE /cloud-connections/:connectionId` — desconectar conexão.
+- `GET /cloud-connections/:connectionId/files` — listar arquivos/pastas com paginação.
+- `GET /cloud-files` — listagem unificada com filtros por provedor/conta, se validada como necessária.
+
+Não implementar endpoints que exponham tokens ou permitam acesso a conexões de outros usuários.
+
+---
+
+## 14. Estratégia de testes e qualidade
+
+- Testes unitários para serviços, regras de negócio e normalização.
+- Testes dos adaptadores com mocks/fakes das APIs externas.
+- Testes de integração para banco e endpoints.
+- Testes de autorização garantindo isolamento entre usuários.
+- Testes de paginação e tratamento de erros/limites.
+- Testes de renovação e expiração de tokens sem usar credenciais reais em testes automatizados.
+- Lint, formatação e typecheck automatizados.
+- CI no GitHub Actions para instalar dependências, validar tipos, executar lint e testes.
+
+Não realizar testes destrutivos em contas reais. Criar aplicativos OAuth de desenvolvimento e contas de teste quando necessário.
+
+---
+
+## 15. Fases de implementação
+
+### Fase 0 — Validação técnica e decisões
+
+- Confirmar versões compatíveis da stack.
+- Escolher gerenciador de pacotes/workspaces.
+- Validar arquitetura Better Auth + NestJS.
+- Definir estratégia de sessão entre Next.js e API.
+- Validar requisitos OAuth e escopos dos três provedores.
+- Definir padrão de configuração e gestão de segredos.
+- Registrar decisões em ADRs.
+
+**Saída:** decisões documentadas e plano da infraestrutura aprovado.
+
+### Fase 1 — Infraestrutura e estrutura do projeto
+
+- Criar monorepo e workspaces.
+- Criar Docker Compose para PostgreSQL e Redis.
+- Preparar `.env.example` e documentação de execução local.
+- Configurar lint, formatador, TypeScript e scripts.
+- Criar aplicações vazias web e API com healthchecks básicos.
+- Deixar MiniStack documentado/configurável, sem torná-lo dependência do MVP.
+
+**Saída:** ambiente local reproduzível e aplicações iniciando.
+
+### Fase 2 — Banco e autenticação interna
+
+- Configurar Prisma e PostgreSQL.
+- Integrar Better Auth conforme arquitetura validada.
+- Implementar cadastro, login, logout e sessão.
+- Testar proteção de rotas e isolamento.
+
+**Saída:** usuário consegue autenticar-se com segurança.
+
+### Fase 3 — Arquitetura de provedores
+
+- Definir contratos e tipos normalizados.
+- Implementar registro/fábrica de adaptadores.
+- Definir mapa de capacidades.
+- Criar testes de contrato.
+
+**Saída:** arquitetura pronta para receber integrações.
+
+### Fase 4 — Google Drive
+
+- Configurar OAuth e API.
+- Armazenar tokens com proteção.
+- Listar arquivos/pastas e navegar.
+- Tratar paginação, renovação, erros e limites.
+
+**Saída:** conexão Google Drive funcional no ambiente de desenvolvimento.
+
+### Fase 5 — Dropbox
+
+- Implementar OAuth e adaptador.
+- Listagem e navegação.
+- Testes e normalização.
+
+### Fase 6 — OneDrive
+
+- Implementar OAuth/Microsoft Graph e adaptador.
+- Listagem e navegação.
+- Testes e normalização.
+
+### Fase 7 — Interface unificada e dashboard
+
+- Exibir conexões e status.
+- Listar arquivos de várias contas.
+- Filtros, navegação, pesquisa e ordenação.
+- Exibir origem de cada item.
+
+**Saída:** MVP definido na seção 2.2 concluído.
+
+### Fase 8 — MEGA PoC
+
+- Avaliar biblioteca e abordagem técnica.
+- Testar autenticação sem coletar senha do usuário.
+- Validar listagem e limitações.
+- Decidir se a integração deve continuar.
+
+### Fase 9 — Transferências
+
+- Desenhar fluxo de transferência e estados.
+- Implementar worker e filas.
+- Streaming/chunks conforme APIs.
+- Progresso, cancelamento, retry, conflitos e logs.
+- Avaliar S3 temporário via MiniStack.
+
+### Fase 10 — Segurança, observabilidade e acabamento
+
+- Revisão de segurança e permissões OAuth.
+- Auditoria e retenção.
+- Rate limiting e hardening.
+- Métricas, logs e alertas.
+- Documentação e preparação de deploy.
+
+---
+
+## 16. Critérios gerais de aceite do MVP
+
+O MVP será considerado concluído quando:
+
+1. O usuário conseguir criar conta e autenticar-se.
+2. O usuário conseguir conectar pelo menos uma conta de cada provedor previsto no MVP (Google Drive, Dropbox e OneDrive), em ambiente de desenvolvimento configurado.
+3. O usuário conseguir conectar múltiplas contas do mesmo provedor sem sobrescrever as anteriores.
+4. As conexões forem vinculadas ao usuário correto e protegidas.
+5. O usuário conseguir listar arquivos e pastas e navegar entre pastas.
+6. A interface permitir filtrar por provedor e por conta.
+7. A aplicação apresentar estados de carregamento, erro, token expirado/reconexão e ausência de resultados.
+8. Os testes essenciais de autorização, adaptadores, paginação e normalização passarem.
+9. Nenhum token ou segredo for exposto no frontend, logs ou repositório.
+10. A documentação permitir que outra pessoa configure e execute o ambiente local.
+
+---
+
+## 17. Variáveis de ambiente — categorias previstas
+
+Os nomes definitivos devem ser definidos durante a Fase 0/1. O arquivo `.env.example` deve conter apenas nomes e valores fictícios/de exemplo, nunca segredos reais.
+
+Categorias:
+- Ambiente e URLs: `NODE_ENV`, URL da aplicação web, URL da API e URLs de callback.
+- Banco: URL de conexão PostgreSQL.
+- Redis: URL de conexão.
+- Better Auth: segredo e URL/base de autenticação conforme documentação oficial.
+- Criptografia: chave ou material necessário para criptografar tokens em repouso.
+- Google: client ID, client secret e configuração OAuth.
+- Dropbox: app key/client ID, app secret e configuração OAuth.
+- Microsoft: client ID, client secret, tenant/configuração de autoridade e redirect URI.
+- MiniStack/AWS local: endpoint, região, credenciais locais de desenvolvimento e configuração de serviços, somente quando utilizado.
+
+Segredos de produção devem ser armazenados em um gerenciador de segredos apropriado, não em arquivos `.env` versionados.
+
+---
+
+## 18. Decisões pendentes que exigem validação
+
+O Codex deve trazer recomendações e aguardar aprovação antes de decisões estruturais sobre:
+
+1. Gerenciador de pacotes e workspaces: npm, pnpm ou alternativa.
+2. Estratégia exata de integração Better Auth + NestJS e compartilhamento de sessão entre web e API.
+3. Modelo de sessão/cookies, domínios e proteção CSRF.
+4. Escopos OAuth mínimos e tipos de conta aceitos em cada provedor.
+5. Estratégia de criptografia e rotação da chave dos tokens externos.
+6. Estratégia de cache de metadados: o que armazenar, por quanto tempo e como invalidar.
+7. Pesquisa unificada: pesquisa local em cache, consultas por provedor ou combinação das duas.
+8. Versões fixas de Node.js, Next.js, NestJS, PostgreSQL, Redis e MiniStack.
+9. Serviços MiniStack que serão realmente usados e em qual fase.
+10. Estratégia de deploy e domínio, fora do escopo inicial de execução local.
+
+---
+
+## 19. Instrução inicial para o Codex
+
+Ao receber este documento, **não comece implementando todas as fases**.
+
+Comece pela **Fase 0 — Validação técnica e decisões**. Faça uma análise objetiva da compatibilidade da stack e das integrações, consulte documentação oficial atualizada, identifique riscos e apresente:
+
+1. Uma lista de decisões técnicas recomendadas, com justificativa curta.
+2. Versões sugeridas e compatibilidade entre elas.
+3. Pontos de atenção para Better Auth + NestJS.
+4. Requisitos OAuth e escopos iniciais de Google Drive, Dropbox e OneDrive.
+5. Estrutura proposta do monorepo e escolha do gerenciador de pacotes.
+6. Plano da Fase 1 com arquivos que serão criados e critérios de aceite.
+
+Aguarde aprovação antes de criar a estrutura do projeto ou instalar dependências.
+
+---
+
+## 20. Referências oficiais a consultar
+
+O Codex deve priorizar documentação oficial e registrar links e data de consulta nas decisões técnicas:
+
+- Next.js: https://nextjs.org/docs
+- React: https://react.dev/
+- Node.js: https://nodejs.org/docs
+- NestJS: https://docs.nestjs.com/
+- Prisma: https://www.prisma.io/docs
+- Better Auth: https://www.better-auth.com/docs
+- PostgreSQL: https://www.postgresql.org/docs/
+- Redis: https://redis.io/docs/
+- Google Drive API: https://developers.google.com/drive/api/guides/about-sdk
+- Google OAuth: https://developers.google.com/identity/protocols/oauth2
+- Dropbox API: https://www.dropbox.com/developers/documentation/http/documentation
+- Dropbox OAuth: https://www.dropbox.com/developers/reference/oauth-guide
+- Microsoft Graph: https://learn.microsoft.com/graph/overview
+- Microsoft identity platform: https://learn.microsoft.com/entra/identity-platform/
+- Docker Compose: https://docs.docker.com/compose/
+- AWS SDK for JavaScript v3: https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/
+
+As referências são pontos de partida; o Codex deve verificar se os links e orientações continuam válidos no momento da implementação.
+
+---
+
+**Fim do documento — Cloud Hub SDD v0.1**
