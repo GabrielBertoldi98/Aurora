@@ -11,6 +11,8 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://cloud_hub:cloud_hub_dev_password@localhost:5432/cloud_hub?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Fase atual
 
-Fase 1 — infraestrutura local e estrutura inicial. Ainda não há autenticação, schema de banco, OAuth ou integrações externas.
+Fase 2 — banco de dados e autenticação interna. Cadastro, login, logout e sessão por cookie estão estruturados; OAuth e integrações externas ainda não foram implementados.
 
 ## Pré-requisitos
 
@@ -14,12 +14,14 @@ Fase 1 — infraestrutura local e estrutura inicial. Ainda não há autenticaç�
 
 ## Como executar após instalar os pré-requisitos
 
-1. Copie `.env.example` para `.env` e altere somente valores locais se necessário.
+1. Copie `.env.example` para `.env`, defina um `BETTER_AUTH_SECRET` local de alta entropia (32+ caracteres) e altere somente valores locais se necessário. Os scripts da API carregam esse arquivo da raiz do monorepo.
 2. Execute `pnpm install --frozen-lockfile`.
 3. Inicie a infraestrutura com `docker compose up -d`.
 4. Inicie web e API com `pnpm dev`.
 
 A web estará em `http://localhost:3000`; o healthcheck público estará em `http://localhost:3000/api/health` quando o proxy da web estiver ativo.
+
+Para aplicar a migração inicial de autenticação, com o PostgreSQL em execução, execute `pnpm --filter @cloud-hub/api db:migrate`.
 
 ## Verificações de qualidade
 
