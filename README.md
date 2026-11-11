@@ -2,9 +2,55 @@
 
 Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dropbox e OneDrive, mantendo os arquivos nos provedores de origem.
 
-## Fase atual
+## Estado atual
 
-Fase 2 — banco de dados e autenticação interna. Cadastro, login, logout e sessão por cookie estão estruturados; OAuth e integrações externas ainda não foram implementados.
+As Fases 0, 1 e 2 foram concluídas. A próxima etapa é a Fase 3 — arquitetura de provedores, que exige plano e aprovação antes de começar. OAuth e integrações com provedores externos ainda não foram implementados.
+
+## Histórico de fases
+
+### Fase 0 — validação técnica e decisões
+
+- Definido `pnpm` como único gerenciador de pacotes e adotado Node.js 24/26 LTS.
+- Decidida a origem pública única: a web encaminha `/api/*` para a API.
+- Separados os fluxos de autenticação interna e OAuth dos provedores.
+- Definidas sessões por cookie `HttpOnly`, tokens externos somente no backend e OAuth Authorization Code com PKCE.
+- Adiado o MiniStack para a futura fase de transferências.
+- Decisões registradas nos ADRs em `docs/decisions/`.
+
+### Fase 1 — infraestrutura local e estrutura inicial
+
+- Criado o monorepo com `apps/web`, `apps/api` e `packages/contracts`.
+- Criados os esqueletos da web Next.js e da API NestJS, incluindo `GET /api/health`.
+- Configurados PostgreSQL e Redis no Docker Compose, com volumes e healthchecks.
+- Configurados TypeScript estrito, ESLint, Prettier, Vitest e CI no GitHub Actions.
+
+### Fase 2 — banco de dados e autenticação interna
+
+- Configurados Prisma e PostgreSQL, com schema e migração das tabelas de usuários, contas, sessões e verificações.
+- Integrado Better Auth para cadastro, login, logout e sessão por cookie.
+- Criada interface mínima de autenticação na web.
+- Protegida a rota `GET /api/me`; requisições sem sessão recebem `401`.
+- Validados cadastro e sessão no banco local, além de formatação, lint, typecheck, testes e build.
+
+## Tecnologias utilizadas
+
+| Tecnologia        | Uso no projeto                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Node.js 24/26 LTS | Ambiente de execução da aplicação e das ferramentas de desenvolvimento.                                                        |
+| TypeScript        | Tipagem estática e contratos mais seguros em web, API e pacotes compartilhados.                                                |
+| pnpm Workspaces   | Gerenciamento de dependências e organização do monorepo.                                                                       |
+| Next.js e React   | Interface web, páginas e proxy da mesma origem para a API.                                                                     |
+| Tailwind CSS      | Estilização utilitária da interface web.                                                                                       |
+| NestJS            | API HTTP, módulos, controllers e guardas de autorização.                                                                       |
+| Better Auth       | Cadastro, login, logout e gerenciamento de sessão por cookies `HttpOnly`.                                                      |
+| Prisma            | Schema, migrações, cliente tipado e acesso da API ao PostgreSQL.                                                               |
+| PostgreSQL        | Banco persistente de usuários, contas e sessões; futuramente, conexões de nuvem.                                               |
+| Redis             | Serviço em memória já disponível para necessidades futuras de cache, rate limiting ou filas; ainda não é usado pela aplicação. |
+| Docker Compose    | Inicialização reproduzível de PostgreSQL e Redis no desenvolvimento local.                                                     |
+| Zod               | Base para validação de contratos compartilhados; será empregado conforme os contratos de domínio forem criados.                |
+| Vitest            | Execução de testes automatizados.                                                                                              |
+| ESLint e Prettier | Verificação de qualidade e padronização de código.                                                                             |
+| GitHub Actions    | CI que executa formatação, lint, typecheck, testes e build em pushes e pull requests.                                          |
 
 ## Pré-requisitos
 
