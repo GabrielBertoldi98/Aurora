@@ -45,7 +45,7 @@ A web fica em `http://localhost:3000` e o healthcheck público em `http://localh
 
 Comandos de qualidade configurados: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`. Esta atualização de handoff não os reexecutou.
 
-## Fase 2 concluída e validada
+## Fases 2 e 3 concluídas e validadas
 
 - Adicionados Prisma 7, PostgreSQL driver e Better Auth 1.7.20 à API, com schema e migração inicial para `User`, `Session`, `Account` e `Verification`.
 - Better Auth é atendido pela API NestJS em `/api/auth/*`; sessões usam cookies e o guard global protege `/api/me`.
@@ -53,10 +53,11 @@ Comandos de qualidade configurados: `pnpm format:check`, `pnpm lint`, `pnpm type
 - A migração inicial foi aplicada ao PostgreSQL local em 11/11/2026. Há uma conta de desenvolvimento e uma sessão persistidas para validação local.
 - O healthcheck responde com sucesso; `/api/me` rejeita chamadas sem sessão com `401`.
 - Formatação, lint, typecheck, testes e build passam. O lint mantém somente um aviso preexistente em `apps/web/postcss.config.mjs`.
+- A Fase 3 adicionou contratos Zod/tipos para provedores e arquivos normalizados, o registro de adaptadores e fakes de Google Drive, Dropbox e OneDrive. Não há rede, OAuth, tokens externos, conexões persistidas ou alteração de banco nessa arquitetura.
 
 ## Próximo ponto de retomada
 
-A próxima fase proposta é a Fase 3 — arquitetura de provedores: contratos normalizados, registro/fábrica de adaptadores, mapa tipado de capacidades e testes de contrato. Não iniciar sem plano e aprovação explícita.
+A próxima fase proposta é a Fase 4 — integração com Google Drive: configurar OAuth, persistir uma conexão externa protegida e listar/navegar dados reais no ambiente de desenvolvimento. Não iniciar sem plano e aprovação explícita.
 
 Não antecipar OAuth, adaptadores, listagem de provedores, cache ou transferências. Cada fase requer plano e aprovação explícita, conforme o SDD.
 

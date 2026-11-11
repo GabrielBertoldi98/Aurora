@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0, 1 e 2 foram concluídas. A próxima etapa é a Fase 3 — arquitetura de provedores, que exige plano e aprovação antes de começar. OAuth e integrações com provedores externos ainda não foram implementados.
+As Fases 0, 1, 2 e 3 foram concluídas. A próxima etapa é a Fase 4 — integração com Google Drive, que exige plano e aprovação antes de começar. OAuth e integrações reais com provedores externos ainda não foram implementados.
 
 ## Histórico de fases
 
@@ -31,6 +31,14 @@ As Fases 0, 1 e 2 foram concluídas. A próxima etapa é a Fase 3 — arquitetur
 - Criada interface mínima de autenticação na web.
 - Protegida a rota `GET /api/me`; requisições sem sessão recebem `401`.
 - Validados cadastro e sessão no banco local, além de formatação, lint, typecheck, testes e build.
+
+### Fase 3 — arquitetura de provedores
+
+- Criados contratos compartilhados para provedores, arquivos normalizados, paginação e capacidades.
+- Criado registro de adaptadores e adaptadores simulados para Google Drive, Dropbox e OneDrive.
+- Implementada listagem e navegação simuladas, sem OAuth, rede, credenciais externas ou alterações no banco.
+- Declaradas as capacidades atuais: listagem e navegação disponíveis; busca e download indisponíveis.
+- Adicionados testes de contrato, registro e navegação pelos adaptadores simulados.
 
 ## Tecnologias utilizadas
 
