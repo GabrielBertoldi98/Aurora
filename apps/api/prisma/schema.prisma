@@ -17,6 +17,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+  cloudConnections CloudConnection[]
+  oauthTransactions OAuthTransaction[]
 
   @@map("user")
 }
@@ -67,4 +69,52 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model CloudConnection {
+  id                String          @id @default(cuid())
+  userId            String
+  provider          String
+  externalAccountId String
+  accountEmail      String?
+  accountName       String?
+  status            String          @default("active")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential        CloudCredential?
+
+  @@unique([userId, provider, externalAccountId])
+  @@index([userId, provider])
+  @@map("cloud_connection")
+}
+
+model CloudCredential {
+  id                    String          @id @default(cuid())
+  connectionId          String          @unique
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  accessTokenExpiresAt  DateTime?
+  scope                 String?
+  keyVersion            Int             @default(1)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  connection            CloudConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@map("cloud_credential")
+}
+
+model OAuthTransaction {
+  id                    String   @id @default(cuid())
+  userId                String
+  provider              String
+  stateHash             String   @unique
+  encryptedCodeVerifier String
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider])
+  @@index([expiresAt])
+  @@map("oauth_transaction")
 }

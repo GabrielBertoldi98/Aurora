@@ -4,11 +4,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AuthController } from './auth/auth.controller.js';
 import { SessionGuard } from './auth/session.guard.js';
+import { CloudConnectionsModule } from './cloud-connections/cloud-connections.module.js';
+import { CloudConnectionsController } from './cloud-connections/cloud-connections.controller.js';
 import { ProvidersModule } from './providers/providers.module.js';
 
 @Module({
-  imports: [ProvidersModule],
-  controllers: [AppController, AuthController],
+  imports: [CloudConnectionsModule, ProvidersModule],
+  controllers: [AppController, AuthController, CloudConnectionsController],
   providers: [
     {
       provide: APP_GUARD,

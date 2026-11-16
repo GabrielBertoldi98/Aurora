@@ -11,6 +11,7 @@ export function AuthForm() {
   const [mode, setMode] = useState<Mode>('sign-in');
   const [message, setMessage] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConnectingGoogleDrive, setIsConnectingGoogleDrive] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,6 +34,35 @@ export function AuthForm() {
     );
   }
 
+  async function connectGoogleDrive() {
+    setIsConnectingGoogleDrive(true);
+    setMessage(undefined);
+
+    try {
+      const response = await fetch('/api/cloud-connections/google-drive/connect', {
+        method: 'POST',
+      });
+      const payload: unknown = await response.json();
+
+      if (
+        !response.ok ||
+        !payload ||
+        typeof payload !== 'object' ||
+        !('authorizationUrl' in payload) ||
+        typeof payload.authorizationUrl !== 'string'
+      ) {
+        throw new Error('Não foi possível iniciar a conexão com o Google Drive.');
+      }
+
+      window.location.assign(payload.authorizationUrl);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Não foi possível conectar o Google Drive.',
+      );
+      setIsConnectingGoogleDrive(false);
+    }
+  }
+
   if (isPending) {
     return <p>Verificando sessão…</p>;
   }
@@ -41,8 +71,17 @@ export function AuthForm() {
     return (
       <section className="mt-8 rounded-lg border border-slate-200 p-6">
         <p className="font-medium">Sessão ativa: {session.user.email}</p>
+        {message ? <p className="mt-3 text-red-700">{message}</p> : null}
         <button
-          className="mt-4 rounded bg-slate-900 px-4 py-2 text-white"
+          className="mt-4 rounded bg-sky-700 px-4 py-2 text-white disabled:opacity-50"
+          disabled={isConnectingGoogleDrive}
+          onClick={() => void connectGoogleDrive()}
+          type="button"
+        >
+          {isConnectingGoogleDrive ? 'Redirecionando…' : 'Conectar Google Drive'}
+        </button>
+        <button
+          className="ml-3 mt-4 rounded bg-slate-900 px-4 py-2 text-white"
           onClick={() => void authClient.signOut()}
           type="button"
         >

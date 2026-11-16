@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  DropboxAdapter,
-  GoogleDriveAdapter,
-  OneDriveAdapter,
-} from '../src/providers/provider-adapters.js';
+import { DropboxAdapter, OneDriveAdapter } from '../src/providers/provider-adapters.js';
+import { GoogleDriveAdapter } from '../src/providers/google-drive.adapter.js';
 import {
   ProviderAdapterNotRegisteredError,
   ProviderAdapterRegistry,
@@ -12,19 +9,20 @@ import {
 import { ProvidersService } from '../src/providers/providers.service.js';
 
 describe('ProvidersService', () => {
-  const registry = new ProviderAdapterRegistry([
-    new GoogleDriveAdapter(),
-    new DropboxAdapter(),
-    new OneDriveAdapter(),
+  const registry = new ProviderAdapterRegistry([new DropboxAdapter(), new OneDriveAdapter()]);
+  const googleRegistry = new ProviderAdapterRegistry([
+    new GoogleDriveAdapter({
+      getGoogleDriveAccessToken: async () => 'test-access-token',
+    } as never),
   ]);
   const service = new ProvidersService(registry);
 
-  it('selects the correct adapter and returns normalized fake files', async () => {
+  it('selects the correct fake adapter and returns normalized files', async () => {
     const result = await service.listFiles({
       connection: {
         connectionId: 'connection-1',
         userId: 'user-1',
-        provider: 'google-drive',
+        provider: 'dropbox',
       },
     });
 
@@ -32,10 +30,14 @@ describe('ProvidersService', () => {
       expect.objectContaining({
         connectionId: 'connection-1',
         kind: 'folder',
-        provider: 'google-drive',
+        provider: 'dropbox',
       }),
     ]);
     expect(result.nextCursor).toBeNull();
+  });
+
+  it('registers the Google Drive adapter separately from fake providers', () => {
+    expect(googleRegistry.getAdapter('google-drive').capabilities.canListFiles).toBe(true);
   });
 
   it('navigates by passing the parent remote identifier to the adapter', async () => {
@@ -57,7 +59,7 @@ describe('ProvidersService', () => {
   });
 
   it('fails explicitly when an adapter is not registered', () => {
-    const incompleteRegistry = new ProviderAdapterRegistry([new GoogleDriveAdapter()]);
+    const incompleteRegistry = new ProviderAdapterRegistry([new DropboxAdapter()]);
 
     expect(() => incompleteRegistry.getAdapter('onedrive')).toThrow(
       ProviderAdapterNotRegisteredError,

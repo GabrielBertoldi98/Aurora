@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0, 1, 2 e 3 foram concluídas. A próxima etapa é a Fase 4 — integração com Google Drive, que exige plano e aprovação antes de começar. OAuth e integrações reais com provedores externos ainda não foram implementados.
+As Fases 0 a 4 foram implementadas e validadas. O Google Drive já pode ser conectado por OAuth e seus arquivos e pastas podem ser listados pelo Cloud Hub.
 
 ## Histórico de fases
 
@@ -40,6 +40,15 @@ As Fases 0, 1, 2 e 3 foram concluídas. A próxima etapa é a Fase 4 — integra
 - Declaradas as capacidades atuais: listagem e navegação disponíveis; busca e download indisponíveis.
 - Adicionados testes de contrato, registro e navegação pelos adaptadores simulados.
 
+### Fase 4 — integração com Google Drive
+
+- Adicionados modelos e migração para conexões externas, credenciais cifradas e transações OAuth temporárias.
+- Implementado Authorization Code Flow com PKCE, `state` de uso único e refresh token no backend.
+- Implementado adaptador Google Drive real para listar e navegar arquivos/pastas, incluindo paginação e renovação de access token.
+- Tokens são cifrados com AES-256-GCM antes de persistirem e não são retornados pela API.
+- Adicionados testes de cifragem e da normalização de respostas Google simuladas.
+- Validado o OAuth com uma conta Google de desenvolvimento e uma listagem real paginada do Drive, sem expor tokens ou metadados dos arquivos nos logs.
+
 ## Tecnologias utilizadas
 
 | Tecnologia        | Uso no projeto                                                                                                                 |
@@ -59,6 +68,7 @@ As Fases 0, 1, 2 e 3 foram concluídas. A próxima etapa é a Fase 4 — integra
 | Vitest            | Execução de testes automatizados.                                                                                              |
 | ESLint e Prettier | Verificação de qualidade e padronização de código.                                                                             |
 | GitHub Actions    | CI que executa formatação, lint, typecheck, testes e build em pushes e pull requests.                                          |
+| Google Drive API  | Fonte externa de metadados de arquivos e pastas da primeira integração real de provedor.                                       |
 
 ## Pré-requisitos
 

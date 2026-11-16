@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 
-import { DropboxAdapter, GoogleDriveAdapter, OneDriveAdapter } from './provider-adapters.js';
+import { CloudConnectionsModule } from '../cloud-connections/cloud-connections.module.js';
+import { GoogleDriveAdapter } from './google-drive.adapter.js';
+import { DropboxAdapter, OneDriveAdapter } from './provider-adapters.js';
 import { PROVIDER_ADAPTERS, ProviderAdapterRegistry } from './provider-adapter-registry.service.js';
 import { ProvidersService } from './providers.service.js';
 
 @Module({
+  imports: [CloudConnectionsModule],
   providers: [
     GoogleDriveAdapter,
     DropboxAdapter,
