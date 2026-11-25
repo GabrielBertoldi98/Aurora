@@ -9,6 +9,7 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import { cloudProviderSchema } from '@cloud-hub/contracts';
 import type { Request, Response } from 'express';
 
 import { PublicRoute } from '../auth/public-route.decorator.js';
@@ -32,6 +33,11 @@ export class CloudConnectionsController {
     return this.connections.beginGoogleDriveConnection(this.getUserId(request));
   }
 
+  @Post('dropbox/connect')
+  beginDropboxConnection(@Req() request: Request) {
+    return this.connections.beginDropboxConnection(this.getUserId(request));
+  }
+
   @Get('google-drive/callback')
   @PublicRoute()
   async completeGoogleDriveConnection(
@@ -49,19 +55,37 @@ export class CloudConnectionsController {
     );
   }
 
+  @Get('dropbox/callback')
+  @PublicRoute()
+  async completeDropboxConnection(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Res() response: Response,
+  ) {
+    if (!code || !state) {
+      throw new UnauthorizedException('Dropbox OAuth callback is missing code or state.');
+    }
+
+    await this.connections.completeDropboxConnection(code, state);
+    return response.redirect(`${process.env.WEB_URL ?? 'http://localhost:3000'}?dropbox=connected`);
+  }
+
   @Get(':connectionId/files')
-  listGoogleDriveFiles(
+  async listFiles(
     @Req() request: Request,
     @Param('connectionId') connectionId: string,
     @Query('parentRemoteId') parentRemoteId?: string,
     @Query('cursor') cursor?: string,
     @Query('pageSize') pageSize?: string,
   ) {
+    const userId = this.getUserId(request);
+    const connection = await this.connections.getConnectionForUser(connectionId, userId);
+
     return this.providers.listFiles({
       connection: {
         connectionId,
-        userId: this.getUserId(request),
-        provider: 'google-drive',
+        userId,
+        provider: cloudProviderSchema.parse(connection.provider),
       },
       parentRemoteId: parentRemoteId ?? null,
       cursor: cursor ?? null,

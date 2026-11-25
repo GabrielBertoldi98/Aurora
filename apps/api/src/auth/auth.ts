@@ -2,6 +2,7 @@ import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { betterAuth } from 'better-auth';
 
 import { prisma } from '../database/prisma.js';
+import { sendPasswordResetEmail } from '../email/resend.service.js';
 
 const secret = process.env.BETTER_AUTH_SECRET;
 const baseURL = process.env.WEB_URL;
@@ -22,6 +23,15 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordResetEmail({
+        to: user.email,
+        userName: user.name,
+        resetUrl: url,
+      });
+    },
   },
   advanced: {
     database: {

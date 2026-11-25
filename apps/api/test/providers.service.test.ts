@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DropboxAdapter, OneDriveAdapter } from '../src/providers/provider-adapters.js';
+import { DropboxAdapter } from '../src/providers/dropbox.adapter.js';
+import { OneDriveAdapter } from '../src/providers/provider-adapters.js';
 import { GoogleDriveAdapter } from '../src/providers/google-drive.adapter.js';
 import {
   ProviderAdapterNotRegisteredError,
@@ -9,7 +10,7 @@ import {
 import { ProvidersService } from '../src/providers/providers.service.js';
 
 describe('ProvidersService', () => {
-  const registry = new ProviderAdapterRegistry([new DropboxAdapter(), new OneDriveAdapter()]);
+  const registry = new ProviderAdapterRegistry([new OneDriveAdapter()]);
   const googleRegistry = new ProviderAdapterRegistry([
     new GoogleDriveAdapter({
       getGoogleDriveAccessToken: async () => 'test-access-token',
@@ -22,7 +23,7 @@ describe('ProvidersService', () => {
       connection: {
         connectionId: 'connection-1',
         userId: 'user-1',
-        provider: 'dropbox',
+        provider: 'onedrive',
       },
     });
 
@@ -30,7 +31,7 @@ describe('ProvidersService', () => {
       expect.objectContaining({
         connectionId: 'connection-1',
         kind: 'folder',
-        provider: 'dropbox',
+        provider: 'onedrive',
       }),
     ]);
     expect(result.nextCursor).toBeNull();
@@ -40,28 +41,36 @@ describe('ProvidersService', () => {
     expect(googleRegistry.getAdapter('google-drive').capabilities.canListFiles).toBe(true);
   });
 
+  it('registers the Dropbox adapter as a real provider adapter', () => {
+    const dropboxRegistry = new ProviderAdapterRegistry([
+      new DropboxAdapter({ getDropboxAccessToken: async () => 'test-access-token' } as never),
+    ]);
+
+    expect(dropboxRegistry.getAdapter('dropbox').capabilities.canNavigateFolders).toBe(true);
+  });
+
   it('navigates by passing the parent remote identifier to the adapter', async () => {
     const result = await service.listFiles({
       connection: {
         connectionId: 'connection-1',
         userId: 'user-1',
-        provider: 'dropbox',
+        provider: 'onedrive',
       },
-      parentRemoteId: 'dropbox-folder',
+      parentRemoteId: 'onedrive-folder',
     });
 
     expect(result.items).toEqual([
       expect.objectContaining({
         kind: 'file',
-        parentRemoteId: 'dropbox-folder',
+        parentRemoteId: 'onedrive-folder',
       }),
     ]);
   });
 
   it('fails explicitly when an adapter is not registered', () => {
-    const incompleteRegistry = new ProviderAdapterRegistry([new DropboxAdapter()]);
+    const incompleteRegistry = new ProviderAdapterRegistry([new OneDriveAdapter()]);
 
-    expect(() => incompleteRegistry.getAdapter('onedrive')).toThrow(
+    expect(() => incompleteRegistry.getAdapter('dropbox')).toThrow(
       ProviderAdapterNotRegisteredError,
     );
   });

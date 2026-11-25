@@ -68,12 +68,6 @@ const listOnlyCapabilities = {
 } as const;
 
 @Injectable()
-export class DropboxAdapter extends FakeProviderAdapter {
-  readonly provider = 'dropbox' as const;
-  readonly capabilities = listOnlyCapabilities;
-}
-
-@Injectable()
 export class OneDriveAdapter extends FakeProviderAdapter {
   readonly provider = 'onedrive' as const;
   readonly capabilities = listOnlyCapabilities;

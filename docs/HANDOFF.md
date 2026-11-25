@@ -1,10 +1,10 @@
 # Handoff — Cloud Hub
 
-**Atualizado em:** 16/11/2026
+**Atualizado em:** 24/11/2026
 
 ## Estado atual
 
-As Fases 0 a 4 estão implementadas e validadas. O Cloud Hub já possui autenticação interna, arquitetura de adaptadores e integração real com Google Drive.
+As Fases 0 a 5 estão implementadas e validadas. O Cloud Hub já possui autenticação interna, arquitetura de adaptadores, integrações Google Drive e Dropbox reais validadas, e recuperação de senha validada com envio real pelo Resend.
 
 ## Entregas por fase
 
@@ -13,6 +13,8 @@ As Fases 0 a 4 estão implementadas e validadas. O Cloud Hub já possui autentic
 - **Fase 2:** Better Auth, Prisma, PostgreSQL, cadastro/login/logout, sessão por cookie `HttpOnly` e rota protegida `GET /api/me`.
 - **Fase 3:** contratos Zod/tipos compartilhados, registro de adaptadores e fakes de Google Drive, Dropbox e OneDrive.
 - **Fase 4:** conexões externas, credenciais cifradas, transações OAuth, callback Google, refresh de token e adaptador Google Drive real para listagem/navegação; validada com uma conta Google de desenvolvimento.
+- **Fase 5:** OAuth Dropbox com PKCE e acesso offline, adaptador Dropbox API v2, listagem/navegação paginada, interface de conexão e testes; validada com uma conta Dropbox de desenvolvimento.
+- **Fase 5.1:** recuperação de senha por link temporário do Better Auth, envio Resend, expiração de uma hora e revogação de sessões; validada com entrega real de e-mail.
 
 ## Fase 4 — pontos técnicos
 
@@ -22,13 +24,23 @@ As Fases 0 a 4 estão implementadas e validadas. O Cloud Hub já possui autentic
   - `GET /api/cloud-connections`
   - `POST /api/cloud-connections/google-drive/connect`
   - `GET /api/cloud-connections/google-drive/callback`
+  - `POST /api/cloud-connections/dropbox/connect`
+  - `GET /api/cloud-connections/dropbox/callback`
   - `GET /api/cloud-connections/:connectionId/files`
-- Dropbox e OneDrive continuam como adaptadores simulados. Não há upload, download, exclusão, transferência ou interface unificada nesta etapa.
+- Google Drive e Dropbox usam adaptadores reais; OneDrive continua simulado. Não há upload, download, exclusão, transferência ou interface unificada nesta etapa.
 
 ## Validação Google real
 
 Em 16/11/2026, o fluxo OAuth foi concluído com uma conta Google de desenvolvimento. A conexão ativa foi encontrada no PostgreSQL e o adaptador realizou uma listagem real com 10 itens e cursor de próxima página. Tokens e nomes de arquivos não foram exibidos.
 
+## Validação Dropbox real
+
+Em 24/11/2026, o fluxo OAuth foi concluído com uma conta Dropbox de desenvolvimento. A conexão ativa foi encontrada no PostgreSQL e o adaptador realizou uma listagem real com 2 itens, sem próxima página. Tokens, e-mails e nomes de arquivos não foram exibidos.
+
+## Validação de recuperação de senha
+
+Em 24/11/2026, o envio real de e-mail de recuperação foi validado pelo usuário com o Resend. As credenciais do Resend permanecem exclusivamente no `.env`; links e tokens de redefinição não foram registrados na documentação.
+
 ## Qualidade e próximo passo
 
-Formatação, lint, typecheck, testes e build passaram em 16/11/2026; o lint mantém somente o aviso preexistente de `apps/web/postcss.config.mjs`. O próximo trabalho deve ser planejado e aprovado antes de iniciar integrações reais com Dropbox ou OneDrive.
+Formatação, lint, typecheck, testes e build passaram em 24/11/2026; o lint mantém somente o aviso preexistente de `apps/web/postcss.config.mjs`. O próximo trabalho é planejar a Fase 6 — integração Microsoft OneDrive.

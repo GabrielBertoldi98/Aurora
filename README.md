@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0 a 4 foram implementadas e validadas. O Google Drive já pode ser conectado por OAuth e seus arquivos e pastas podem ser listados pelo Cloud Hub.
+As Fases 0 a 5 foram implementadas e validadas com contas Google Drive e Dropbox reais. A recuperação de senha também foi validada com envio real pelo Resend.
 
 ## Histórico de fases
 
@@ -49,6 +49,23 @@ As Fases 0 a 4 foram implementadas e validadas. O Google Drive já pode ser cone
 - Adicionados testes de cifragem e da normalização de respostas Google simuladas.
 - Validado o OAuth com uma conta Google de desenvolvimento e uma listagem real paginada do Drive, sem expor tokens ou metadados dos arquivos nos logs.
 
+### Fase 5 — integração com Dropbox
+
+- Implementado OAuth Authorization Code com PKCE, `state` de uso único e solicitação de acesso offline para receber refresh token.
+- Reutilizadas as tabelas de conexões, credenciais cifradas e transações OAuth já existentes; não foi necessária nova migração.
+- Implementado adaptador Dropbox API v2 para identificar a conta e listar/navegar arquivos e pastas com cursor de paginação.
+- Generalizada a rota de arquivos para resolver o provedor da conexão persistida, preservando a validação de propriedade pelo usuário autenticado.
+- Adicionado botão de conexão Dropbox e testes de normalização e continuação de paginação.
+- Validado o OAuth com uma conta Dropbox de desenvolvimento e uma listagem real, sem expor tokens ou metadados dos arquivos nos logs.
+
+### Fase 5.1 — recuperação de senha
+
+- Implementado fluxo “Esqueci minha senha” e página para definir a nova senha a partir de um link temporário.
+- Integrado Better Auth ao Resend para envio do link de redefinição, sem registrar token ou chave de API em logs.
+- Tokens de redefinição expiram em uma hora; após a troca, todas as sessões existentes são revogadas.
+- A resposta à solicitação é genérica para não revelar se o e-mail possui uma conta cadastrada.
+- Validado o envio real de e-mail pelo Resend; `RESEND_API_KEY` e `RESEND_FROM_EMAIL` permanecem exclusivamente no `.env`.
+
 ## Tecnologias utilizadas
 
 | Tecnologia        | Uso no projeto                                                                                                                 |
@@ -69,6 +86,8 @@ As Fases 0 a 4 foram implementadas e validadas. O Google Drive já pode ser cone
 | ESLint e Prettier | Verificação de qualidade e padronização de código.                                                                             |
 | GitHub Actions    | CI que executa formatação, lint, typecheck, testes e build em pushes e pull requests.                                          |
 | Google Drive API  | Fonte externa de metadados de arquivos e pastas da primeira integração real de provedor.                                       |
+| Dropbox API v2    | Fonte externa de metadados de arquivos e pastas da integração Dropbox.                                                         |
+| Resend            | Entrega de e-mails transacionais para recuperação de senha.                                                                    |
 
 ## Pré-requisitos
 
