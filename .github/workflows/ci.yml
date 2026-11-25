@@ -25,6 +25,19 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+
+      - name: Configure CI environment
+        run: |
+          cat <<'EOF' > .env
+          DATABASE_URL=postgresql://cloud_hub:cloud_hub_dev_password@localhost:5432/cloud_hub?schema=public
+          BETTER_AUTH_SECRET=ci_only_better_auth_secret_with_at_least_32_characters
+          TOKEN_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          WEB_URL=http://localhost:3000
+          API_PUBLIC_URL=http://localhost:3000/api
+          API_INTERNAL_URL=http://localhost:3001
+          API_PORT=3001
+          EOF
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
