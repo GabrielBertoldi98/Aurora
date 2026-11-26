@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0 a 5 foram implementadas e validadas com contas Google Drive e Dropbox reais. A recuperação de senha também foi validada com envio real pelo Resend.
+As Fases 0 a 5 e a Fase 7 foram implementadas. Google Drive, Dropbox e recuperação de senha foram validados com integrações reais; OneDrive permanece adiado.
 
 ## Histórico de fases
 
@@ -65,6 +65,18 @@ As Fases 0 a 5 foram implementadas e validadas com contas Google Drive e Dropbox
 - Tokens de redefinição expiram em uma hora; após a troca, todas as sessões existentes são revogadas.
 - A resposta à solicitação é genérica para não revelar se o e-mail possui uma conta cadastrada.
 - Validado o envio real de e-mail pelo Resend; `RESEND_API_KEY` e `RESEND_FROM_EMAIL` permanecem exclusivamente no `.env`.
+
+### Fase 6 — integração com Microsoft OneDrive (adiada)
+
+- A integração OneDrive foi adiada e não faz parte da versão publicada enquanto a configuração Microsoft Entra não estiver disponível.
+
+### Fase 7 — interface unificada e dashboard
+
+- Criado dashboard autenticado para visualizar conexões Google Drive e Dropbox, seus status e as contas vinculadas.
+- Implementados filtros por provedor, seleção de conta e início seguro de novas conexões OAuth.
+- Implementado explorador de arquivos com raiz combinada de Google Drive e Dropbox, navegação por pastas, breadcrumbs, paginação por conexão e identificação da origem de cada item.
+- Adicionadas busca e ordenação locais, limitadas intencionalmente aos itens já carregados; não há promessa de busca ou paginação global combinada.
+- Tokens, credenciais, identificadores externos e metadados específicos de provedores não são expostos pela interface.
 
 ## Tecnologias utilizadas
 

@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cloud-hub/contracts": "workspace:*",
     "@tailwindcss/postcss": "4.3.5",
     "better-auth": "1.7.20",
     "next": "16.4.6",
