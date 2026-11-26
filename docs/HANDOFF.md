@@ -4,7 +4,7 @@
 
 ## Estado atual
 
-As Fases 0 a 5 e a Fase 7 estão implementadas. O Cloud Hub já possui autenticação interna, arquitetura de adaptadores, integrações Google Drive e Dropbox reais validadas, recuperação de senha validada com envio real pelo Resend e dashboard unificado. O OneDrive permanece adiado.
+As Fases 0 a 5, 7 e 8 estão concluídas. O Cloud Hub já possui autenticação interna, arquitetura de adaptadores, integrações Google Drive e Dropbox reais validadas, recuperação de senha validada com envio real pelo Resend e dashboard unificado. O OneDrive permanece adiado; a PoC do MEGA encerrou em no-go por segurança.
 
 ## Entregas por fase
 
@@ -17,6 +17,7 @@ As Fases 0 a 5 e a Fase 7 estão implementadas. O Cloud Hub já possui autentica
 - **Fase 5.1:** recuperação de senha por link temporário do Better Auth, envio Resend, expiração de uma hora e revogação de sessões; validada com entrega real de e-mail.
 - **Fase 6:** integração OneDrive adiada; não faz parte da versão publicada.
 - **Fase 7:** dashboard autenticado e explorador unificado para Google Drive e Dropbox, com raiz combinada no filtro Todas, navegação por pastas, paginação por conexão e busca/ordenação locais.
+- **Fase 8:** PoC MEGA concluída em no-go. O modelo oficial avaliado exige senha inicial ou sessão prévia e não oferece autorização delegada segura para o backend multiusuário; nenhum código, credencial ou migração MEGA foi adicionado.
 
 ## Fase 4 — pontos técnicos
 
@@ -45,4 +46,4 @@ Em 24/11/2026, o envio real de e-mail de recuperação foi validado pelo usuári
 
 ## Qualidade e próximo passo
 
-Formatação, lint, typecheck, testes e build passaram em 26/11/2026; o lint mantém somente o aviso preexistente de `apps/web/postcss.config.mjs`. A Fase 7 deve ser validada com conexões reais Google Drive e Dropbox antes do próximo planejamento.
+Formatação, lint, typecheck, testes e build passaram em 26/11/2026; o lint mantém somente o aviso preexistente de `apps/web/postcss.config.mjs`. A CI da Fase 7 também passou. O próximo trabalho é planejar a Fase 9 — transferências entre Google Drive e Dropbox.

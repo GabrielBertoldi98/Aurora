@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0 a 5 e a Fase 7 foram implementadas. Google Drive, Dropbox e recuperação de senha foram validados com integrações reais; OneDrive permanece adiado.
+As Fases 0 a 5, 7 e 8 foram concluídas. Google Drive, Dropbox e recuperação de senha foram validados com integrações reais; OneDrive permanece adiado e o MEGA foi avaliado e rejeitado para o MVP por não atender ao requisito de autenticação sem coleta de senha.
 
 ## Histórico de fases
 
@@ -77,6 +77,14 @@ As Fases 0 a 5 e a Fase 7 foram implementadas. Google Drive, Dropbox e recupera�
 - Implementado explorador de arquivos com raiz combinada de Google Drive e Dropbox, navegação por pastas, breadcrumbs, paginação por conexão e identificação da origem de cada item.
 - Adicionadas busca e ordenação locais, limitadas intencionalmente aos itens já carregados; não há promessa de busca ou paginação global combinada.
 - Tokens, credenciais, identificadores externos e metadados específicos de provedores não são expostos pela interface.
+
+### Fase 8 — PoC do MEGA
+
+- Avaliados o SDK e as ferramentas oficiais do MEGA, incluindo o modelo de login fora da aplicação via MEGAcmd.
+- Confirmado que o primeiro login de conta depende de senha ou de uma sessão já existente; não há, no caminho avaliado, autorização delegada equivalente a OAuth para o backend web multiusuário.
+- Rejeitada a adoção de bibliotecas não oficiais que recebem e-mail e senha.
+- Decisão **no-go**: nenhuma senha, recovery key, master key ou session string MEGA será aceita, persistida ou registrada pelo Cloud Hub.
+- Nenhuma migração, adaptador ou botão MEGA foi criado; a decisão está registrada no ADR-016.
 
 ## Tecnologias utilizadas
 
