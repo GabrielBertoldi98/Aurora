@@ -27,6 +27,20 @@ interface Breadcrumb {
   readonly remoteId: string;
 }
 
+type TransferStatus = 'queued' | 'running' | 'retrying' | 'succeeded' | 'failed' | 'cancelled';
+
+interface CloudTransfer {
+  readonly id: string;
+  readonly sourceConnectionId: string;
+  readonly sourceName: string;
+  readonly destinationConnectionId: string;
+  readonly destinationName: string;
+  readonly status: TransferStatus;
+  readonly progressBytes: string;
+  readonly sourceSizeBytes: string | null;
+  readonly errorCode: string | null;
+}
+
 const providerNames: Record<SupportedProvider, string> = {
   'google-drive': 'Google Drive',
   dropbox: 'Dropbox',
@@ -95,9 +109,44 @@ function parseFile(value: unknown): CloudFile | null {
   };
 }
 
+function parseTransfer(value: unknown): CloudTransfer | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.sourceConnectionId !== 'string' ||
+    typeof value.sourceName !== 'string' ||
+    typeof value.destinationConnectionId !== 'string' ||
+    typeof value.destinationName !== 'string' ||
+    typeof value.progressBytes !== 'string' ||
+    (typeof value.sourceSizeBytes !== 'string' && value.sourceSizeBytes !== null) ||
+    (typeof value.errorCode !== 'string' && value.errorCode !== null) ||
+    !['queued', 'running', 'retrying', 'succeeded', 'failed', 'cancelled'].includes(
+      String(value.status),
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    sourceConnectionId: value.sourceConnectionId,
+    sourceName: value.sourceName,
+    destinationConnectionId: value.destinationConnectionId,
+    destinationName: value.destinationName,
+    status: value.status as TransferStatus,
+    progressBytes: value.progressBytes,
+    sourceSizeBytes: value.sourceSizeBytes,
+    errorCode: value.errorCode,
+  };
+}
+
 function requestErrorMessage(response: Response): string {
   if (response.status === 401) {
     return 'Sua sessão expirou ou esta conexão precisa ser refeita.';
+  }
+
+  if (response.status === 409) {
+    return 'Reconecte as duas contas para autorizar a transferÃªncia de arquivos.';
   }
 
   return 'Não foi possível carregar os dados. Tente novamente.';
@@ -120,6 +169,11 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<FileSort>('name');
   const [notice, setNotice] = useState<string>();
+  const [transfers, setTransfers] = useState<CloudTransfer[]>([]);
+  const [transfersError, setTransfersError] = useState<string>();
+  const [transferSource, setTransferSource] = useState<CloudFile>();
+  const [transferDestinationId, setTransferDestinationId] = useState<string>();
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
 
   const activeConnections = useMemo(
     () => connections.filter((connection) => connection.status === 'active'),
@@ -140,6 +194,12 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
   const displayedFiles = useMemo(
     () => filterAndSortFiles(files, search, sort),
     [files, search, sort],
+  );
+  const isTransferInProgress = transfers.some(
+    (transfer) =>
+      transfer.status === 'queued' ||
+      transfer.status === 'running' ||
+      transfer.status === 'retrying',
   );
 
   const loadConnections = useCallback(async (signal?: AbortSignal) => {
@@ -178,6 +238,29 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
       if (!signal?.aborted) {
         setIsLoadingConnections(false);
       }
+    }
+  }, []);
+
+  const loadTransfers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/transfers', { credentials: 'same-origin' });
+      if (!response.ok) {
+        throw new Error(requestErrorMessage(response));
+      }
+      const payload: unknown = await response.json();
+      if (!Array.isArray(payload)) {
+        throw new Error('A resposta de transferÃªncias nÃ£o foi reconhecida.');
+      }
+      setTransfers(
+        payload
+          .map(parseTransfer)
+          .filter((transfer): transfer is CloudTransfer => Boolean(transfer)),
+      );
+      setTransfersError(undefined);
+    } catch (error) {
+      setTransfersError(
+        error instanceof Error ? error.message : 'NÃ£o foi possÃ­vel carregar as transferÃªncias.',
+      );
     }
   }, []);
 
@@ -321,6 +404,20 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
   }, [loadConnections]);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => void loadTransfers(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadTransfers]);
+
+  useEffect(() => {
+    if (!isTransferInProgress) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => void loadTransfers(), 3_000);
+    return () => window.clearInterval(intervalId);
+  }, [isTransferInProgress, loadTransfers]);
+
+  useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.get('googleDrive') === 'connected' || query.get('dropbox') === 'connected') {
       const timeoutId = window.setTimeout(() => {
@@ -402,6 +499,72 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
     setFiles([]);
     setNextCursor(null);
     setAllFilesWarning(undefined);
+  }
+
+  function startTransfer(file: CloudFile) {
+    setTransferSource(file);
+    setTransferDestinationId(
+      activeConnections.find((connection) => connection.id !== file.connectionId)?.id ??
+        activeConnections[0]?.id,
+    );
+    setTransfersError(undefined);
+  }
+
+  async function submitTransfer() {
+    if (!transferSource || !transferDestinationId) {
+      return;
+    }
+
+    setIsSubmittingTransfer(true);
+    setTransfersError(undefined);
+    try {
+      const response = await fetch('/api/transfers', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceConnectionId: transferSource.connectionId,
+          sourceRemoteId: transferSource.remoteId,
+          sourceName: transferSource.name,
+          sourceMimeType: transferSource.mimeType,
+          sourceSizeBytes: transferSource.sizeBytes,
+          destinationConnectionId: transferDestinationId,
+          destinationName: transferSource.name,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(requestErrorMessage(response));
+      }
+
+      setTransferSource(undefined);
+      setNotice(
+        'TransferÃªncia adicionada Ã  fila. O arquivo Ã© enviado diretamente entre os provedores.',
+      );
+      await loadTransfers();
+    } catch (error) {
+      setTransfersError(
+        error instanceof Error ? error.message : 'NÃ£o foi possÃ­vel criar a transferÃªncia.',
+      );
+    } finally {
+      setIsSubmittingTransfer(false);
+    }
+  }
+
+  async function cancelTransfer(transferId: string) {
+    try {
+      const response = await fetch(`/api/transfers/${encodeURIComponent(transferId)}/cancel`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        throw new Error(requestErrorMessage(response));
+      }
+      await loadTransfers();
+    } catch (error) {
+      setTransfersError(
+        error instanceof Error ? error.message : 'NÃ£o foi possÃ­vel cancelar a transferÃªncia.',
+      );
+    }
   }
 
   return (
@@ -619,6 +782,7 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
                   <th className="px-4 py-3 font-semibold">Tamanho</th>
                   <th className="px-4 py-3 font-semibold">Modificado</th>
                   <th className="px-4 py-3 font-semibold">Origem</th>
+                  <th className="px-4 py-3 font-semibold">AÃ§Ãµes</th>
                 </tr>
               </thead>
               <tbody>
@@ -659,6 +823,17 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
                     <td className="px-4 py-3 text-slate-600">
                       {providerNames[file.provider as SupportedProvider]}
                     </td>
+                    <td className="px-4 py-3">
+                      {file.kind === 'file' ? (
+                        <button
+                          className="rounded border border-sky-700 px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                          onClick={() => startTransfer(file)}
+                          type="button"
+                        >
+                          Transferir
+                        </button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -676,6 +851,100 @@ export function Dashboard({ userEmail }: { readonly userEmail: string }) {
             {isLoadingMore ? 'Carregando mais…' : 'Carregar mais'}
           </button>
         ) : null}
+      </section>
+
+      <section aria-labelledby="transfers-heading" className="mt-10 border-t border-slate-200 pt-8">
+        <h2 className="text-xl font-semibold" id="transfers-heading">
+          TransferÃªncias
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          A fila executa uma transferÃªncia por vez e nÃ£o guarda o conteÃºdo do arquivo no Cloud
+          Hub.
+        </p>
+        {transfersError ? (
+          <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{transfersError}</p>
+        ) : null}
+        {transferSource ? (
+          <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4">
+            <h3 className="font-semibold">Transferir {transferSource.name}</h3>
+            <label className="mt-3 block text-sm font-medium" htmlFor="transfer-destination">
+              Conta de destino (pasta raiz)
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:max-w-md"
+              id="transfer-destination"
+              onChange={(event) => setTransferDestinationId(event.target.value)}
+              value={transferDestinationId ?? ''}
+            >
+              {activeConnections.map((connection) => (
+                <option key={connection.id} value={connection.id}>
+                  {providerNames[connection.provider]} â€”{' '}
+                  {connection.accountName ?? connection.accountEmail ?? 'Conta'}
+                </option>
+              ))}
+            </select>
+            <div className="mt-3 flex gap-2">
+              <button
+                className="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                disabled={!transferDestinationId || isSubmittingTransfer}
+                onClick={() => void submitTransfer()}
+                type="button"
+              >
+                {isSubmittingTransfer ? 'Adicionandoâ€¦' : 'Adicionar Ã  fila'}
+              </button>
+              <button
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium"
+                disabled={isSubmittingTransfer}
+                onClick={() => setTransferSource(undefined)}
+                type="button"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {transfers.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">Nenhuma transferÃªncia criada.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="w-full min-w-[620px] text-left text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Arquivo</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Progresso</th>
+                  <th className="px-4 py-3 font-semibold">AÃ§Ãµes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfers.map((transfer) => (
+                  <tr className="border-t border-slate-100" key={transfer.id}>
+                    <td className="px-4 py-3 font-medium">{transfer.sourceName}</td>
+                    <td className="px-4 py-3 capitalize">{transfer.status}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {formatFileSize(Number(transfer.progressBytes))}
+                      {transfer.sourceSizeBytes
+                        ? ` de ${formatFileSize(Number(transfer.sourceSizeBytes))}`
+                        : ''}
+                      {transfer.errorCode ? ` (${transfer.errorCode})` : ''}
+                    </td>
+                    <td className="px-4 py-3">
+                      {transfer.status === 'queued' || transfer.status === 'retrying' ? (
+                        <button
+                          className="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-800 hover:bg-red-50"
+                          onClick={() => void cancelTransfer(transfer.id)}
+                          type="button"
+                        >
+                          Cancelar
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

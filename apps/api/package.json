@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "pnpm --filter @cloud-hub/contracts build && node --env-file=../../.env ./node_modules/prisma/build/index.js generate",
     "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "worker": "tsx --env-file=../../.env src/transfers/worker.ts",
     "prebuild": "node --env-file=../../.env ./node_modules/prisma/build/index.js generate",
     "pretypecheck": "pnpm --filter @cloud-hub/contracts build && node --env-file=../../.env ./node_modules/prisma/build/index.js generate",
     "build": "tsc -p tsconfig.build.json",
@@ -18,14 +19,15 @@
     "test": "node --env-file=../../.env ./node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
-    "@cloud-hub/contracts": "workspace:*",
     "@better-auth/prisma-adapter": "1.7.20",
+    "@cloud-hub/contracts": "workspace:*",
     "@nestjs/common": "12.4.2",
     "@nestjs/core": "12.4.2",
     "@nestjs/platform-express": "12.4.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "better-auth": "1.7.20",
+    "bullmq": "5.66.6",
     "express": "5.2.1",
     "pg": "8.23.1",
     "reflect-metadata": "0.2.2",

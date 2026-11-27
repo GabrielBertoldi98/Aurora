@@ -4,7 +4,7 @@ Projeto de estudo para centralizar a navegação de arquivos em Google Drive, Dr
 
 ## Estado atual
 
-As Fases 0 a 5, 7 e 8 foram concluídas. Google Drive, Dropbox e recuperação de senha foram validados com integrações reais; OneDrive permanece adiado e o MEGA foi avaliado e rejeitado para o MVP por não atender ao requisito de autenticação sem coleta de senha.
+As Fases 0 a 5 e 7 a 9 foram concluídas. Google Drive, Dropbox e recuperação de senha foram validados com integrações reais; as transferências exigem que as contas sejam reconectadas com as novas permissões de conteúdo. OneDrive permanece adiado e o MEGA foi avaliado e rejeitado para o MVP por não atender ao requisito de autenticação sem coleta de senha.
 
 ## Histórico de fases
 
@@ -86,28 +86,38 @@ As Fases 0 a 5, 7 e 8 foram concluídas. Google Drive, Dropbox e recuperação d
 - Decisão **no-go**: nenhuma senha, recovery key, master key ou session string MEGA será aceita, persistida ou registrada pelo Cloud Hub.
 - Nenhuma migração, adaptador ou botão MEGA foi criado; a decisão está registrada no ADR-016.
 
+### Fase 9 — transferências assíncronas entre nuvens
+
+- Criados os modelos `transfer` e `transfer_log`, com estados de fila, execução, nova tentativa, sucesso, falha e cancelamento. Os contadores de bytes usam `BIGINT` no PostgreSQL e são serializados como texto na API para evitar perda de precisão no navegador.
+- Adicionada fila persistente BullMQ sobre o Redis já existente. A API somente agenda, consulta e cancela trabalhos; o comando `pnpm worker` inicia o processo separado que executa uma transferência por vez.
+- Implementado streaming direto Google Drive ↔ Dropbox. O conteúdo passa do download do provedor de origem para o upload do provedor de destino, sem arquivo temporário, bucket ou conteúdo no banco do Cloud Hub.
+- Adicionados progresso, retentativas exponenciais para indisponibilidade temporária, mensagens de erro seguras e cancelamento enquanto o trabalho ainda está na fila.
+- A interface permite selecionar um arquivo e uma conta de destino na pasta raiz, acompanhar a fila e cancelar transferências pendentes.
+- O OAuth agora pede somente as permissões adicionais necessárias: leitura de conteúdo no Google Drive e leitura/escrita de conteúdo no Dropbox. As conexões antigas não ganham permissões automaticamente: devem ser reconectadas pela pessoa usuária antes de transferir.
+
 ## Tecnologias utilizadas
 
-| Tecnologia        | Uso no projeto                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Node.js 24/26 LTS | Ambiente de execução da aplicação e das ferramentas de desenvolvimento.                                                        |
-| TypeScript        | Tipagem estática e contratos mais seguros em web, API e pacotes compartilhados.                                                |
-| pnpm Workspaces   | Gerenciamento de dependências e organização do monorepo.                                                                       |
-| Next.js e React   | Interface web, páginas e proxy da mesma origem para a API.                                                                     |
-| Tailwind CSS      | Estilização utilitária da interface web.                                                                                       |
-| NestJS            | API HTTP, módulos, controllers e guardas de autorização.                                                                       |
-| Better Auth       | Cadastro, login, logout e gerenciamento de sessão por cookies `HttpOnly`.                                                      |
-| Prisma            | Schema, migrações, cliente tipado e acesso da API ao PostgreSQL.                                                               |
-| PostgreSQL        | Banco persistente de usuários, contas e sessões; futuramente, conexões de nuvem.                                               |
-| Redis             | Serviço em memória já disponível para necessidades futuras de cache, rate limiting ou filas; ainda não é usado pela aplicação. |
-| Docker Compose    | Inicialização reproduzível de PostgreSQL e Redis no desenvolvimento local.                                                     |
-| Zod               | Base para validação de contratos compartilhados; será empregado conforme os contratos de domínio forem criados.                |
-| Vitest            | Execução de testes automatizados.                                                                                              |
-| ESLint e Prettier | Verificação de qualidade e padronização de código.                                                                             |
-| GitHub Actions    | CI que executa formatação, lint, typecheck, testes e build em pushes e pull requests.                                          |
-| Google Drive API  | Fonte externa de metadados de arquivos e pastas da primeira integração real de provedor.                                       |
-| Dropbox API v2    | Fonte externa de metadados de arquivos e pastas da integração Dropbox.                                                         |
-| Resend            | Entrega de e-mails transacionais para recuperação de senha.                                                                    |
+| Tecnologia        | Uso no projeto                                                                                                  |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| Node.js 24/26 LTS | Ambiente de execução da aplicação e das ferramentas de desenvolvimento.                                         |
+| TypeScript        | Tipagem estática e contratos mais seguros em web, API e pacotes compartilhados.                                 |
+| pnpm Workspaces   | Gerenciamento de dependências e organização do monorepo.                                                        |
+| Next.js e React   | Interface web, páginas e proxy da mesma origem para a API.                                                      |
+| Tailwind CSS      | Estilização utilitária da interface web.                                                                        |
+| NestJS            | API HTTP, módulos, controllers e guardas de autorização.                                                        |
+| Better Auth       | Cadastro, login, logout e gerenciamento de sessão por cookies `HttpOnly`.                                       |
+| Prisma            | Schema, migrações, cliente tipado e acesso da API ao PostgreSQL.                                                |
+| PostgreSQL        | Banco persistente de usuários, contas e sessões; futuramente, conexões de nuvem.                                |
+| Redis             | Armazena a fila persistente de transferências, sem guardar os arquivos em si.                                   |
+| BullMQ            | Coordena os trabalhos de transferência, suas retentativas e o worker separado sobre o Redis.                    |
+| Docker Compose    | Inicialização reproduzível de PostgreSQL e Redis no desenvolvimento local.                                      |
+| Zod               | Base para validação de contratos compartilhados; será empregado conforme os contratos de domínio forem criados. |
+| Vitest            | Execução de testes automatizados.                                                                               |
+| ESLint e Prettier | Verificação de qualidade e padronização de código.                                                              |
+| GitHub Actions    | CI que executa formatação, lint, typecheck, testes e build em pushes e pull requests.                           |
+| Google Drive API  | Fonte externa de metadados de arquivos e pastas da primeira integração real de provedor.                        |
+| Dropbox API v2    | Fonte externa de metadados de arquivos e pastas da integração Dropbox.                                          |
+| Resend            | Entrega de e-mails transacionais para recuperação de senha.                                                     |
 
 ## Pré-requisitos
 
@@ -121,10 +131,13 @@ As Fases 0 a 5, 7 e 8 foram concluídas. Google Drive, Dropbox e recuperação d
 2. Execute `pnpm install --frozen-lockfile`.
 3. Inicie a infraestrutura com `docker compose up -d`.
 4. Inicie web e API com `pnpm dev`.
+5. Em outro terminal, inicie o worker de transferências com `pnpm worker`.
 
 A web estará em `http://localhost:3000`; o healthcheck público estará em `http://localhost:3000/api/health` quando o proxy da web estiver ativo.
 
 Para aplicar a migração inicial de autenticação, com o PostgreSQL em execução, execute `pnpm --filter @cloud-hub/api db:migrate`.
+
+Para habilitar transferências, reconecte Google Drive e Dropbox no dashboard. No console da aplicação Dropbox, as permissões `files.content.read` e `files.content.write` também precisam estar habilitadas antes da reconexão. Consulte o ADR-017 para os limites e a justificativa de segurança.
 
 ## Verificações de qualidade
 

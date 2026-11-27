@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @cloud-hub/web --filter @cloud-hub/api dev",
+    "worker": "pnpm --filter @cloud-hub/api worker",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",

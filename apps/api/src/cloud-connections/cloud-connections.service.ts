@@ -10,6 +10,10 @@ const GOOGLE_DRIVE_PROVIDER = 'google-drive';
 const DROPBOX_PROVIDER = 'dropbox';
 const OAUTH_TRANSACTION_TTL_MS = 10 * 60 * 1000;
 const TOKEN_REFRESH_THRESHOLD_MS = 60 * 1000;
+const GOOGLE_DRIVE_SCOPES =
+  'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+const DROPBOX_SCOPES =
+  'account_info.read files.metadata.read files.content.read files.content.write';
 
 const googleTokenResponseSchema = z.object({
   access_token: z.string().min(1),
@@ -75,6 +79,34 @@ export class CloudConnectionsService {
     return connection;
   }
 
+  async canTransferContent(connectionId: string, userId: string): Promise<boolean> {
+    const credential = await prisma.cloudCredential.findFirst({
+      where: {
+        connectionId,
+        connection: { userId, status: 'active' },
+      },
+      select: { scope: true, connection: { select: { provider: true } } },
+    });
+
+    if (!credential) {
+      return false;
+    }
+
+    const scopes = new Set((credential.scope ?? '').split(/\s+/).filter(Boolean));
+    if (credential.connection.provider === GOOGLE_DRIVE_PROVIDER) {
+      return [
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/drive.file',
+      ].every((scope) => scopes.has(scope));
+    }
+
+    if (credential.connection.provider === DROPBOX_PROVIDER) {
+      return ['files.content.read', 'files.content.write'].every((scope) => scopes.has(scope));
+    }
+
+    return false;
+  }
+
   async beginGoogleDriveConnection(userId: string): Promise<{ authorizationUrl: string }> {
     const state = randomBytes(32).toString('base64url');
     const codeVerifier = randomBytes(48).toString('base64url');
@@ -95,10 +127,7 @@ export class CloudConnectionsService {
     authorizationUrl.searchParams.set('client_id', config.clientId);
     authorizationUrl.searchParams.set('redirect_uri', config.redirectUri);
     authorizationUrl.searchParams.set('response_type', 'code');
-    authorizationUrl.searchParams.set(
-      'scope',
-      'https://www.googleapis.com/auth/drive.metadata.readonly',
-    );
+    authorizationUrl.searchParams.set('scope', GOOGLE_DRIVE_SCOPES);
     authorizationUrl.searchParams.set('access_type', 'offline');
     authorizationUrl.searchParams.set('prompt', 'consent');
     authorizationUrl.searchParams.set('code_challenge', codeChallenge);
@@ -129,7 +158,7 @@ export class CloudConnectionsService {
     authorizationUrl.searchParams.set('redirect_uri', config.redirectUri);
     authorizationUrl.searchParams.set('response_type', 'code');
     authorizationUrl.searchParams.set('token_access_type', 'offline');
-    authorizationUrl.searchParams.set('scope', 'account_info.read files.metadata.read');
+    authorizationUrl.searchParams.set('scope', DROPBOX_SCOPES);
     authorizationUrl.searchParams.set('code_challenge', codeChallenge);
     authorizationUrl.searchParams.set('code_challenge_method', 'S256');
     authorizationUrl.searchParams.set('state', state);
@@ -272,7 +301,7 @@ export class CloudConnectionsService {
             ? this.encryption.encrypt(tokens.refresh_token)
             : null,
           accessTokenExpiresAt: expiresAt,
-          scope: tokens.scope ?? 'account_info.read files.metadata.read',
+          scope: tokens.scope ?? DROPBOX_SCOPES,
         },
         update: {
           encryptedAccessToken: this.encryption.encrypt(tokens.access_token),
@@ -280,8 +309,7 @@ export class CloudConnectionsService {
             ? this.encryption.encrypt(tokens.refresh_token)
             : (existingCredential?.encryptedRefreshToken ?? null),
           accessTokenExpiresAt: expiresAt,
-          scope:
-            tokens.scope ?? existingCredential?.scope ?? 'account_info.read files.metadata.read',
+          scope: tokens.scope ?? existingCredential?.scope ?? DROPBOX_SCOPES,
           keyVersion: 1,
         },
       });

@@ -19,6 +19,7 @@ model User {
   sessions      Session[]
   cloudConnections CloudConnection[]
   oauthTransactions OAuthTransaction[]
+  transfers      Transfer[]
 
   @@map("user")
 }
@@ -83,6 +84,8 @@ model CloudConnection {
   updatedAt         DateTime        @updatedAt
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   credential        CloudCredential?
+  sourceTransfers   Transfer[]       @relation("TransferSourceConnection")
+  destinationTransfers Transfer[]    @relation("TransferDestinationConnection")
 
   @@unique([userId, provider, externalAccountId])
   @@index([userId, provider])
@@ -117,4 +120,50 @@ model OAuthTransaction {
   @@index([userId, provider])
   @@index([expiresAt])
   @@map("oauth_transaction")
+}
+
+model Transfer {
+  id                      String          @id @default(cuid())
+  userId                  String
+  sourceConnectionId      String
+  sourceRemoteId          String
+  sourceName              String
+  sourceMimeType          String?
+  sourceSizeBytes         BigInt?
+  destinationConnectionId String
+  destinationParentRemoteId String?
+  destinationName         String
+  conflictStrategy        String          @default("fail")
+  status                  String          @default("queued")
+  progressBytes           BigInt          @default(0)
+  attemptCount            Int             @default(0)
+  errorCode               String?
+  queuedAt                DateTime        @default(now())
+  startedAt               DateTime?
+  completedAt             DateTime?
+  cancelledAt             DateTime?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  user                    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceConnection        CloudConnection @relation("TransferSourceConnection", fields: [sourceConnectionId], references: [id], onDelete: Restrict)
+  destinationConnection   CloudConnection @relation("TransferDestinationConnection", fields: [destinationConnectionId], references: [id], onDelete: Restrict)
+  logs                    TransferLog[]
+
+  @@index([userId, status, createdAt])
+  @@index([sourceConnectionId])
+  @@index([destinationConnectionId])
+  @@map("transfer")
+}
+
+model TransferLog {
+  id          String   @id @default(cuid())
+  transferId  String
+  event       String
+  attempt     Int?
+  bytes       BigInt?
+  createdAt   DateTime @default(now())
+  transfer    Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId, createdAt])
+  @@map("transfer_log")
 }
